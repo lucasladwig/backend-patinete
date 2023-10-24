@@ -25,7 +25,6 @@ var db = new sqlite3.Database("./dados-usuario.db", (err) => {
   console.log("Conectado ao SQLite!");
 });
 
-// MÉTODOS CRUD HTTP
 // Cria a tabela 'usuario', caso ela não exista
 db.run(
   `CREATE TABLE IF NOT EXISTS usuario 
@@ -42,6 +41,7 @@ db.run(
   }
 );
 
+// MÉTODOS CRUD HTTP
 // POST /usuario - CADASTRAR um novo usuário
 app.post("/usuario", (req, res, next) => {
   db.run(
@@ -49,7 +49,7 @@ app.post("/usuario", (req, res, next) => {
     [req.body.cpf, req.body.nome, req.body.email, req.body.telefone],
     (err) => {
       if (err) {
-        console.log("Error: " + err);
+        console.log(err);
         res.status(500).send("Erro ao cadastrar usuário.");
       } else {
         console.log("Usuário cadastrado com sucesso!");
@@ -63,7 +63,7 @@ app.post("/usuario", (req, res, next) => {
 app.get("/usuario", (req, res, next) => {
   db.all(`SELECT * FROM usuario`, [], (err, result) => {
     if (err) {
-      console.log("Erro: " + err);
+      console.log(err);
       res.status(500).send("Erro ao obter dados de usuários.");
     } else if (result.length === 0) {
         console.log("Lista de usuários vazia!");

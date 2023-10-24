@@ -28,23 +28,23 @@ var db = new sqlite3.Database("./dados-patinete.db", (err) => {
   console.log("Conectado ao SQLite!");
 });
 
-// MÉTODOS CRUD HTTP
 // Cria a tabela 'patinete', caso ela não exista
 db.run(
   `CREATE TABLE IF NOT EXISTS patinete 
-        (serial INTEGER PRIMARY KEY NOT NULL UNIQUE,
-            status TEXT CHECK(status IN ("disponível", "em uso", "fora de serviço")) NOT NULL,
-            lat REAL, 
-            lng REAL)`,
-  [],
-  (err) => {
-    if (err) {
-      console.log("ERRO: não foi possível criar tabela.");
-      throw err;
+  (serial INTEGER PRIMARY KEY NOT NULL UNIQUE,
+    status TEXT CHECK(status IN ("disponível", "em uso", "fora de serviço")) NOT NULL,
+    lat REAL, 
+    lng REAL)`,
+    [],
+    (err) => {
+      if (err) {
+        console.log("ERRO: não foi possível criar tabela.");
+        throw err;
+      }
     }
-  }
-);
-
+    );
+    
+// MÉTODOS CRUD HTTP
 // POST /patinete - CADASTRAR um novo patinete
 app.post("/patinete", (req, res, next) => {
   db.run(
@@ -52,7 +52,7 @@ app.post("/patinete", (req, res, next) => {
     [req.body.serial, req.body.status, req.body.lat, req.body.lng],
     (err) => {
       if (err) {
-        console.log("Error: " + err);
+        console.log(err);
         res.status(500).send("Erro ao cadastrar patinete.");
       } else {
         console.log("Patinete cadastrado com sucesso!");
@@ -66,7 +66,7 @@ app.post("/patinete", (req, res, next) => {
 app.get("/patinete", (req, res, next) => {
   db.all(`SELECT * FROM patinete`, [], (err, result) => {
     if (err) {
-      console.log("Erro: " + err);
+      console.log(err);
       res.status(500).send("Erro ao obter dados de patinetes.");
     } else if (result.length === 0) {
       console.log("Lista de patinetes vazia!");
@@ -84,7 +84,7 @@ app.get("/patinete/:serial", (req, res, next) => {
     req.params.serial,
     (err, result) => {
       if (err) {
-        console.log("Erro: " + err);
+        console.log(err);
         res.status(500).send("Erro ao obter dados de patinetes.");
       } else if (result == null) {
         console.log("Patinete não encontrado.");
@@ -102,22 +102,23 @@ app.get("/patinete/:lat/:lng/:raio", (req, res) => {
     lat: parseFloat(req.params.lat),
     lng: parseFloat(req.params.lng),
   };
-  const raio = parseInt(req.params.raio, 10);
+  const raio = parseInt(req.params.raio, 10); // Raio em metros
 
   db.all("SELECT * FROM patinete", [], (err, result) => {
     if (err) {
-      console.log("Erro: " + err);
+      console.log(err);
       res.status(500).send("Erro ao obter dados de patinetes.");
     } else if (result.length === 0) {
       console.log("Nenhum patinete encontrado!");
       res.status(500).send("Nenhum patinete encontrado!");
     } else {
-      let patinetes = result.filter((patinete) =>
-        geolib.isPointWithinRadius(
-          { lat: patinete.lat, lng: patinete.lng },
-          centro,
-          raio
-        )
+      let patinetes = result.filter(
+        (patinete) =>
+          geolib.isPointWithinRadius(
+            { lat: patinete.lat, lng: patinete.lng },
+            centro,
+            raio
+          ) && patinete.status === "disponível"
       );
       res.status(200).json(patinetes);
     }
