@@ -7,8 +7,8 @@ const bodyParser = require("body-parser");
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Inicia o Servidor na porta 8080
-let porta = 8080;
+// Inicia o Servidor na porta 8082
+let porta = 8082;
 app.listen(porta, () => {
   console.log("Servidor em execução na porta: " + porta);
 });
@@ -25,23 +25,23 @@ var db = new sqlite3.Database("./dados-aluguel.db", (err) => {
   console.log("Conectado ao SQLite!");
 });
 
-// MÉTODOS CRUD HTTP
 // Cria a tabela 'aluguel', caso ela não exista
 db.run(
   `CREATE TABLE IF NOT EXISTS aluguel 
-        (serial INTEGER PRIMARY KEY NOT NULL UNIQUE,
-            status TEXT CHECK(status IN ("disponível", "em uso", "fora de serviço")) NOT NULL,
-            lat REAL, 
-            lng REAL)`,
-  [],
-  (err) => {
-    if (err) {
-      console.log("ERRO: não foi possível criar tabela.");
-      throw err;
+  (serial INTEGER PRIMARY KEY NOT NULL UNIQUE,
+    status TEXT CHECK(status IN ("disponível", "em uso", "fora de serviço")) NOT NULL,
+    lat REAL, 
+    lng REAL)`,
+    [],
+    (err) => {
+      if (err) {
+        console.log("ERRO: não foi possível criar tabela.");
+        throw err;
+      }
     }
-  }
-);
-
+    );
+    
+// MÉTODOS CRUD HTTP
 // POST /aluguel - CADASTRAR um novo aluguel
 app.post("/aluguel", (req, res, next) => {
   db.run(
@@ -49,7 +49,7 @@ app.post("/aluguel", (req, res, next) => {
     [req.body.serial, req.body.status, req.body.lat, req.body.lng],
     (err) => {
       if (err) {
-        console.log("Error: " + err);
+        console.log(err);
         res.status(500).send("Erro ao cadastrar aluguel.");
       } else {
         console.log("Aluguel cadastrado com sucesso!");
@@ -63,12 +63,11 @@ app.post("/aluguel", (req, res, next) => {
 app.get("/aluguel", (req, res, next) => {
   db.all(`SELECT * FROM aluguel`, [], (err, result) => {
     if (err) {
-      console.log("Erro: " + err);
+      console.log(err);
       res.status(500).send("Erro ao obter dados de aluguéis.");
     } else if (result.length === 0) {
-        console.log("Lista de aluguéis vazia!");
-        res.status(500).send("Lista de aluguéis vazia!");
-
+      console.log("Lista de aluguéis vazia!");
+      res.status(500).send("Lista de aluguéis vazia!");
     } else {
       res.status(200).json(result);
     }
@@ -82,7 +81,7 @@ app.get("/aluguel/:serial", (req, res, next) => {
     req.params.serial,
     (err, result) => {
       if (err) {
-        console.log("Erro: " + err);
+        console.log(err);
         res.status(500).send("Erro ao obter dados de aluguéis.");
       } else if (result == null) {
         console.log("Aluguel não encontrado.");
@@ -92,6 +91,35 @@ app.get("/aluguel/:serial", (req, res, next) => {
       }
     }
   );
+});
+
+// GET /aluguel/:lat/:lng/:raio - RETORNAR todos aluguéis disponíveis dentro do raio
+app.get("/aluguel/:lat/:lng/:raio", (req, res) => {
+  const centro = {
+    lat: parseFloat(req.params.lat),
+    lng: parseFloat(req.params.lng),
+  };
+  const raio = parseInt(req.params.raio, 10); // Raio em metros
+
+  db.all("SELECT * FROM aluguel", [], (err, result) => {
+    if (err) {
+      console.log(err);
+      res.status(500).send("Erro ao obter dados de aluguéis.");
+    } else if (result.length === 0) {
+      console.log("Nenhum aluguel encontrado!");
+      res.status(500).send("Nenhum aluguel encontrado!");
+    } else {
+      let aluguéis = result.filter(
+        (aluguel) =>
+          geolib.isPointWithinRadius(
+            { lat: aluguel.lat, lng: aluguel.lng },
+            centro,
+            raio
+          ) && aluguel.status === "disponível"
+      );
+      res.status(200).json(aluguéis);
+    }
+  });
 });
 
 // PATCH /aluguel/:serial - ALTERAR o cadastro de um aluguel
@@ -118,14 +146,18 @@ app.patch("/aluguel/:serial", (req, res, next) => {
 
 // DELETE /aluguel/:serial - REMOVER um aluguel do cadastro
 app.delete("/aluguel/:serial", (req, res, next) => {
-  db.run(`DELETE FROM cadastro WHERE serial = ?`, req.params.serial, function (err) {
-    if (err) {
-      res.status(500).send("Erro ao remover aluguel.");
-    } else if (this.changes == 0) {
-      console.log("Aluguel não encontrado.");
-      res.status(404).send("Aluguel não encontrado.");
-    } else {
-      res.status(200).send("Aluguel removido com sucesso!");
+  db.run(
+    `DELETE FROM cadastro WHERE serial = ?`,
+    req.params.serial,
+    function (err) {
+      if (err) {
+        res.status(500).send("Erro ao remover aluguel.");
+      } else if (this.changes == 0) {
+        console.log("Aluguel não encontrado.");
+        res.status(404).send("Aluguel não encontrado.");
+      } else {
+        res.status(200).send("Aluguel removido com sucesso!");
+      }
     }
-  });
+  );
 });
