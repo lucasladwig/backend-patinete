@@ -68,7 +68,6 @@ app.get("/usuario", (req, res, next) => {
     } else if (result.length === 0) {
         console.log("Lista de usuários vazia!");
         res.status(500).send("Lista de usuários vazia!");
-
     } else {
       res.status(200).json(result);
     }

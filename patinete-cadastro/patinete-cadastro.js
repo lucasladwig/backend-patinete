@@ -7,8 +7,11 @@ const bodyParser = require("body-parser");
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Inicia o Servidor na porta 8080
-let porta = 8080;
+// Geolib - Para calcular distâncias com base nas coordenadas
+const geolib = require("geolib");
+
+// Inicia o Servidor na porta 8081
+let porta = 8081;
 app.listen(porta, () => {
   console.log("Servidor em execução na porta: " + porta);
 });
@@ -66,9 +69,8 @@ app.get("/patinete", (req, res, next) => {
       console.log("Erro: " + err);
       res.status(500).send("Erro ao obter dados de patinetes.");
     } else if (result.length === 0) {
-        console.log("Lista de patinetes vazia!");
-        res.status(500).send("Lista de patinetes vazia!");
-
+      console.log("Lista de patinetes vazia!");
+      res.status(500).send("Lista de patinetes vazia!");
     } else {
       res.status(200).json(result);
     }
@@ -92,6 +94,34 @@ app.get("/patinete/:serial", (req, res, next) => {
       }
     }
   );
+});
+
+// GET /patinete/:lat/:lng/:raio - RETORNAR todos patinetes disponíveis dentro do raio
+app.get("/patinete/:lat/:lng/:raio", (req, res) => {
+  const centro = {
+    lat: parseFloat(req.params.lat),
+    lng: parseFloat(req.params.lng),
+  };
+  const raio = parseInt(req.params.raio, 10);
+
+  db.all("SELECT * FROM patinete", [], (err, result) => {
+    if (err) {
+      console.log("Erro: " + err);
+      res.status(500).send("Erro ao obter dados de patinetes.");
+    } else if (result.length === 0) {
+      console.log("Nenhum patinete encontrado!");
+      res.status(500).send("Nenhum patinete encontrado!");
+    } else {
+      let patinetes = result.filter((patinete) =>
+        geolib.isPointWithinRadius(
+          { lat: patinete.lat, lng: patinete.lng },
+          centro,
+          raio
+        )
+      );
+      res.status(200).json(patinetes);
+    }
+  });
 });
 
 // PATCH /patinete/:serial - ALTERAR o cadastro de um patinete
@@ -118,14 +148,18 @@ app.patch("/patinete/:serial", (req, res, next) => {
 
 // DELETE /patinete/:serial - REMOVER um patinete do cadastro
 app.delete("/patinete/:serial", (req, res, next) => {
-  db.run(`DELETE FROM cadastro WHERE serial = ?`, req.params.serial, function (err) {
-    if (err) {
-      res.status(500).send("Erro ao remover patinete.");
-    } else if (this.changes == 0) {
-      console.log("Patinete não encontrado.");
-      res.status(404).send("Patinete não encontrado.");
-    } else {
-      res.status(200).send("Patinete removido com sucesso!");
+  db.run(
+    `DELETE FROM cadastro WHERE serial = ?`,
+    req.params.serial,
+    function (err) {
+      if (err) {
+        res.status(500).send("Erro ao remover patinete.");
+      } else if (this.changes == 0) {
+        console.log("Patinete não encontrado.");
+        res.status(404).send("Patinete não encontrado.");
+      } else {
+        res.status(200).send("Patinete removido com sucesso!");
+      }
     }
-  });
+  );
 });

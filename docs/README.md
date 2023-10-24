@@ -2,6 +2,8 @@
 
 Você deve criar um backend para um aplicativo de aluguel de patinetes elétricos. O backend será composto por cinco microservices, responsáveis pelas funcionalidades descritas a seguir:
 
+![Esquema dos microsserviços](/docs/patinete-microsservicos.png "Esquema dos microsserviços")
+
 ## Descrição dos Serviços
 
 ### Cadastro de Usuários
