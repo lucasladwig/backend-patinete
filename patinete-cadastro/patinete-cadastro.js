@@ -131,7 +131,7 @@ app.patch("/patinete/:serial", (req, res, next) => {
     `UPDATE patinete 
         SET status = COALESCE(?, status), 
         lat = COALESCE(?, lat),
-        lng = COALESCE(?, lng)
+        lng = COALESCE(?, lng),
         WHERE serial = ?`,
     [req.body.status, req.body.lat, req.body.lng, req.params.serial],
     function (err) {
