@@ -1,4 +1,4 @@
-# Atividade 3 - Backend
+# Backend Aluguel de Patinetes
 
 Você deve criar um backend para um aplicativo de aluguel de patinetes elétricos. O backend será composto por cinco microservices, responsáveis pelas funcionalidades descritas a seguir:
 
@@ -37,15 +37,15 @@ Atributos:
 - CPF usuário
 - Serial patinete
 
-### Controle de acesso ao patinete
+### Controle de Acesso ao Patinete
 
 Bloqueia/debloqueia o patinete no início/fim de cada aluguel (basta imprimir uma mensagem na tela dizendo que o patinete foi bloqueado/desbloqueado).
 
-### Serviço de pagamento
+### Serviço de Pagamento
 
 Registra o cartão usado para pagamento e efetua a cobrança ao final do aluguel (basta simular a cobrança e registrar no banco).
 
-## Titulo
+## Observações
 
 Considere que o backend do sistema poderá ser acessado tanto pelo aplicativo do usuário, para localização de patinetes, desbloqueio e pagamento, quanto pelo hardware do patinete, para envio de localização e bloqueio/desbloqueio. Nessa atividade não será necessário implementar estes frontends; verificaremos o funcionamento do backend enviando requisições de teste aos serviços a partir de ferramentas como o Postman.
 
