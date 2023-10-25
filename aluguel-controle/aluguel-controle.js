@@ -10,6 +10,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Axios - para enviar requisições HTTP para outros microsserviços
 const axios = require("axios");
 
+const portaServicoUsuario = "8080";
+
 // Inicia o Servidor na porta 8082
 let porta = 8082;
 app.listen(porta, () => {
@@ -96,32 +98,40 @@ app.get("/aluguel/:id", (req, res, next) => {
 
 // GET /aluguel/:usuario - RETORNAR todos aluguéis de um usuário
 app.get("/aluguel/:usuario", (req, res) => {
-  db.get(`SELECT * FROM aluguel WHERE usuario = ?`, req.params.usuario, (err, result) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send("Erro ao obter dados de aluguéis.");
-    } else if (result == null) {
-      console.log("Aluguel não encontrado.");
-      res.status(404).send("Aluguel não encontrado.");
-    } else {
-      res.status(200).json(result);
+  db.get(
+    `SELECT * FROM aluguel WHERE usuario = ?`,
+    req.params.usuario,
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).send("Erro ao obter dados de aluguéis.");
+      } else if (result == null) {
+        console.log("Aluguel não encontrado.");
+        res.status(404).send("Aluguel não encontrado.");
+      } else {
+        res.status(200).json(result);
+      }
     }
-  });
+  );
 });
 
 // GET /aluguel/:patinete - RETORNAR todos aluguéis de um patinete
 app.get("/aluguel/:patinete", (req, res) => {
-  db.get(`SELECT * FROM aluguel WHERE patinete = ?`, req.params.patinete, (err, result) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send("Erro ao obter dados de aluguéis.");
-    } else if (result == null) {
-      console.log("Aluguel não encontrado.");
-      res.status(404).send("Aluguel não encontrado.");
-    } else {
-      res.status(200).json(result);
+  db.get(
+    `SELECT * FROM aluguel WHERE patinete = ?`,
+    req.params.patinete,
+    (err, result) => {
+      if (err) {
+        console.log(err);
+        res.status(500).send("Erro ao obter dados de aluguéis.");
+      } else if (result == null) {
+        console.log("Aluguel não encontrado.");
+        res.status(404).send("Aluguel não encontrado.");
+      } else {
+        res.status(200).json(result);
+      }
     }
-  });
+  );
 });
 
 // PATCH /aluguel/:id - ALTERAR o cadastro de um aluguel
@@ -133,7 +143,13 @@ app.patch("/aluguel/:id", (req, res, next) => {
         patinete = COALESCE(?, patinete),
         usuario = COALESCE(?, usuario),
         WHERE id = ?`,
-    [req.body.inicio, req.body.final, req.body.patinete, req.body.usuario, req.params.id],
+    [
+      req.body.inicio,
+      req.body.final,
+      req.body.patinete,
+      req.body.usuario,
+      req.params.id,
+    ],
     function (err) {
       if (err) {
         res.status(500).send("Erro ao alterar dados.");
@@ -149,29 +165,30 @@ app.patch("/aluguel/:id", (req, res, next) => {
 
 // DELETE /aluguel/:id - REMOVER um aluguel do cadastro
 app.delete("/aluguel/:id", (req, res, next) => {
-  db.run(
-    `DELETE FROM cadastro WHERE id = ?`,
-    req.params.id,
-    function (err) {
-      if (err) {
-        res.status(500).send("Erro ao remover aluguel.");
-      } else if (this.changes == 0) {
-        console.log("Aluguel não encontrado.");
-        res.status(404).send("Aluguel não encontrado.");
-      } else {
-        res.status(200).send("Aluguel removido com sucesso!");
-      }
+  db.run(`DELETE FROM cadastro WHERE id = ?`, req.params.id, function (err) {
+    if (err) {
+      res.status(500).send("Erro ao remover aluguel.");
+    } else if (this.changes == 0) {
+      console.log("Aluguel não encontrado.");
+      res.status(404).send("Aluguel não encontrado.");
+    } else {
+      res.status(200).send("Aluguel removido com sucesso!");
     }
-  );
+  });
 });
 
-
-
-// Requisição para outros microsserviços
-async function getUser() {
+// Verifica se há entradas em outros microsserviços
+async function usuarioExiste(cpf) {
   try {
-    const response = await axios.get('/user?ID=12345');
-    console.log(response);
+    const res = await axios.get(
+      `localhost:${portaServicoUsuario}/usuario/${cpf}`
+    );
+    console.log(res);
+    if (res.status === 500) {
+      return true;
+    } else {
+      return false;
+    }
   } catch (error) {
     console.error(error);
   }
