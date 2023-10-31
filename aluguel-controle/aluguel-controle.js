@@ -10,9 +10,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Axios - para enviar requisições HTTP para outros microsserviços
 const axios = require("axios");
 
-const urlCadastroUsuario = "localhost:8080";
-const urlCadastroPatinete = "localhost:8081";
-const urlControlePatinete = "localhost:8083";
+const urlCadastroUsuario = "localhost:8080/usuario";
+const urlCadastroPatinete = "localhost:8081/patinete";
+const urlControlePatinete = "localhost:8083/controle";
+const urlServicoPagamento = "localhost:8084/pagamento";
 
 // Inicia o Servidor na porta 8082
 let porta = 8082;
@@ -53,23 +54,30 @@ db.run(
 // MÉTODOS CRUD HTTP
 // POST /aluguel - CADASTRAR um novo aluguel
 app.post("/aluguel", (req, res) => {
+  // Verifica se usuario e patinete existem no db e se o patinete está disponível
   if (
-    entidadeExiste(`${urlCadastroPatinete}/patinete/${req.body.patinete}`) &&
-    entidadeExiste(`${urlCadastroUsuario}/usuario/${req.body.usuario}`)
+    entidadeExiste(`${urlCadastroPatinete}/${req.body.patinete}`) &&
+    entidadeExiste(`${urlCadastroUsuario}/${req.body.usuario}`)
   ) {
-    db.run(
-      `INSERT INTO aluguel(patinete, usuario, inicio) VALUES(?, ?, ?)`,
-      [req.body.patinete, req.body.usuario, req.body.inicio],
-      (err) => {
-        if (err) {
-          console.log(err);
-          res.status(500).send("Erro ao cadastrar aluguel.");
-        } else {
-          console.log("Aluguel cadastrado com sucesso!");
-          res.status(200).send("Aluguel cadastrado com sucesso!");
+    if (
+      verificaDisponibilidade(`${urlCadastroPatinete}/${req.body.patinete}`)
+    ) {
+      db.run(
+        `INSERT INTO aluguel(patinete, usuario, inicio) VALUES(?, ?, ?)`,
+        [req.body.patinete, req.body.usuario, req.body.inicio],
+        (err) => {
+          if (err) {
+            console.log(err);
+            res.status(500).send("Erro ao cadastrar aluguel.");
+          } else {
+            console.log("Aluguel cadastrado com sucesso!");
+            res.status(200).send("Aluguel cadastrado com sucesso!");
+          }
         }
-      }
-    );
+      );
+    } else {
+      res.status(500).send("Patinete indisponível!")
+    }
   } else {
     res.status(500).send("Usuário ou patinete não existem!");
   }
@@ -144,13 +152,13 @@ app.get("/aluguel/:patinete", (req, res) => {
 });
 
 // PATCH /aluguel/:id - ALTERAR o cadastro de um aluguel
-app.patch("/aluguel/:id", (req, res, next) => {
+app.patch("/aluguel/:id", (req, res) => {
   db.run(
     `UPDATE aluguel 
         SET patinete = COALESCE(?, patinete),
         usuario = COALESCE(?, usuario),
         inicio = COALESCE(?, inicio), 
-        final = COALESCE(?, final),        
+        final = COALESCE(?, final)
         WHERE id = ?`,
     [
       req.body.patinete,
@@ -172,8 +180,22 @@ app.patch("/aluguel/:id", (req, res, next) => {
   );
 });
 
-// PATCH localhost:${portaCadastroPatinete}/patinete/:serial - ALTERAR status de patinete
-axios.patch(`localhost:${portaCadastroPatinete}/patinete/:serial`, );
+// PATCH /aluguel/disponibilidade/:serial - ALTERAR status de patinete (comunica com outro microsserviço)
+app.patch("/aluguel/disponibilidade/:serial", async (req, res) => {
+  try {
+    // Pega parametros e body da requisição e envia para microsserviço via axios
+    const dados = req.body.disponibilidade;
+    const url = `${urlCadastroPatinete}/:serial`;
+    const resposta = await axios.patch(
+      url.replace(":serial", req.params.serial),
+      { data: dados }
+    );
+    res.status(200).send(resposta.data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Erro ao obter dados de patinete.");
+  }
+});
 
 // DELETE /aluguel/:id - REMOVER um aluguel do cadastro
 app.delete("/aluguel/:id", (req, res, next) => {
@@ -201,10 +223,10 @@ async function entidadeExiste(caminho) {
 }
 
 // Modifica cadastro de entidade
-async function modificaEntidade(caminho) {
+async function verificaDisponibilidade(caminho) {
   try {
     const resposta = await axios.get(caminho);
-    if (resposta.status === 200) {
+    if (resposta.data.disponibilidade === "disponível") {
       return true;
     } else {
       return false;
