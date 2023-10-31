@@ -32,7 +32,7 @@ var db = new sqlite3.Database("./dados-patinete.db", (err) => {
 db.run(
   `CREATE TABLE IF NOT EXISTS patinete 
   (serial INTEGER PRIMARY KEY NOT NULL UNIQUE,
-    status TEXT CHECK(status IN ("disponível", "em uso", "fora de serviço")) NOT NULL,
+    disponibilidade TEXT CHECK(disponibilidade IN ('disponível', 'em uso', 'fora de serviço')) NOT NULL,
     lat REAL, 
     lng REAL)`,
     [],
@@ -46,10 +46,10 @@ db.run(
     
 // MÉTODOS CRUD HTTP
 // POST /patinete - CADASTRAR um novo patinete
-app.post("/patinete", (req, res, next) => {
+app.post("/patinete", (req, res) => {
   db.run(
-    `INSERT INTO patinete(serial, status, lat, lng) VALUES(?, ?, ?, ?)`,
-    [req.body.serial, req.body.status, req.body.lat, req.body.lng],
+    `INSERT INTO patinete(serial, disponibilidade, lat, lng) VALUES(?, ?, ?, ?)`,
+    [req.body.serial, req.body.disponibilidade, req.body.lat, req.body.lng],
     (err) => {
       if (err) {
         console.log(err);
@@ -63,7 +63,7 @@ app.post("/patinete", (req, res, next) => {
 });
 
 // GET /patinete - RETORNAR todos os patinetes
-app.get("/patinete", (req, res, next) => {
+app.get("/patinete", (req, res) => {
   db.all(`SELECT * FROM patinete`, [], (err, result) => {
     if (err) {
       console.log(err);
@@ -78,7 +78,7 @@ app.get("/patinete", (req, res, next) => {
 });
 
 // GET /patinete/:serial - RETORNAR patinete com base no serial
-app.get("/patinete/:serial", (req, res, next) => {
+app.get("/patinete/:serial", (req, res) => {
   db.get(
     `SELECT * FROM patinete WHERE serial = ?`,
     req.params.serial,
@@ -118,7 +118,7 @@ app.get("/patinete/:lat/:lng/:raio", (req, res) => {
             { lat: patinete.lat, lng: patinete.lng },
             centro,
             raio
-          ) && patinete.status === "disponível"
+          ) && patinete.disponibilidade === "disponível"
       );
       res.status(200).json(patinetes);
     }
@@ -126,14 +126,14 @@ app.get("/patinete/:lat/:lng/:raio", (req, res) => {
 });
 
 // PATCH /patinete/:serial - ALTERAR o cadastro de um patinete
-app.patch("/patinete/:serial", (req, res, next) => {
+app.patch("/patinete/:serial", (req, res) => {
   db.run(
     `UPDATE patinete 
-        SET status = COALESCE(?, status), 
+        SET disponibilidade = COALESCE(?, disponibilidade), 
         lat = COALESCE(?, lat),
-        lng = COALESCE(?, lng),
+        lng = COALESCE(?, lng)
         WHERE serial = ?`,
-    [req.body.status, req.body.lat, req.body.lng, req.params.serial],
+    [req.body.disponibilidade, req.body.lat, req.body.lng, req.params.serial],
     function (err) {
       if (err) {
         res.status(500).send("Erro ao alterar dados.");
@@ -148,7 +148,7 @@ app.patch("/patinete/:serial", (req, res, next) => {
 });
 
 // DELETE /patinete/:serial - REMOVER um patinete do cadastro
-app.delete("/patinete/:serial", (req, res, next) => {
+app.delete("/patinete/:serial", (req, res) => {
   db.run(
     `DELETE FROM cadastro WHERE serial = ?`,
     req.params.serial,

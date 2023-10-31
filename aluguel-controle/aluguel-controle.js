@@ -10,7 +10,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Axios - para enviar requisições HTTP para outros microsserviços
 const axios = require("axios");
 
-const portaServicoUsuario = "8080";
+const urlCadastroUsuario = "localhost:8080/usuario";
+const urlCadastroPatinete = "localhost:8081/patinete";
+const urlControlePatinete = "localhost:8083/controle";
+const urlServicoPagamento = "localhost:8084/pagamento";
 
 // Inicia o Servidor na porta 8082
 let porta = 8082;
@@ -35,10 +38,10 @@ var db = new sqlite3.Database("./dados-aluguel.db", (err) => {
 db.run(
   `CREATE TABLE IF NOT EXISTS aluguel 
   (id INTEGER PRIMARY KEY NOT NULL UNIQUE AUTO_INCREMENT, 
-    inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    final TIMESTAMP,
     patinete INTEGER,
-    usuario INTEGER)`,
+    usuario INTEGER,
+    inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    final TIMESTAMP,)`,
   [],
   (err) => {
     if (err) {
@@ -51,19 +54,33 @@ db.run(
 // MÉTODOS CRUD HTTP
 // POST /aluguel - CADASTRAR um novo aluguel
 app.post("/aluguel", (req, res) => {
-  db.run(
-    `INSERT INTO aluguel(inicio, final, patinete, usuario) VALUES(?, ?, ?, ?)`,
-    [req.body.inicio, req.body.final, req.body.patinete, req.body.usuario],
-    (err) => {
-      if (err) {
-        console.log(err);
-        res.status(500).send("Erro ao cadastrar aluguel.");
-      } else {
-        console.log("Aluguel cadastrado com sucesso!");
-        res.status(200).send("Aluguel cadastrado com sucesso!");
-      }
+  // Verifica se usuario e patinete existem no db e se o patinete está disponível
+  if (
+    entidadeExiste(`${urlCadastroPatinete}/${req.body.patinete}`) &&
+    entidadeExiste(`${urlCadastroUsuario}/${req.body.usuario}`)
+  ) {
+    if (
+      verificaDisponibilidade(`${urlCadastroPatinete}/${req.body.patinete}`)
+    ) {
+      db.run(
+        `INSERT INTO aluguel(patinete, usuario, inicio) VALUES(?, ?, ?)`,
+        [req.body.patinete, req.body.usuario, req.body.inicio],
+        (err) => {
+          if (err) {
+            console.log(err);
+            res.status(500).send("Erro ao cadastrar aluguel.");
+          } else {
+            console.log("Aluguel cadastrado com sucesso!");
+            res.status(200).send("Aluguel cadastrado com sucesso!");
+          }
+        }
+      );
+    } else {
+      res.status(500).send("Patinete indisponível!")
     }
-  );
+  } else {
+    res.status(500).send("Usuário ou patinete não existem!");
+  }
 });
 
 // GET /aluguel - RETORNAR todos os aluguéis
@@ -135,19 +152,19 @@ app.get("/aluguel/:patinete", (req, res) => {
 });
 
 // PATCH /aluguel/:id - ALTERAR o cadastro de um aluguel
-app.patch("/aluguel/:id", (req, res, next) => {
+app.patch("/aluguel/:id", (req, res) => {
   db.run(
     `UPDATE aluguel 
-        SET inicio = COALESCE(?, inicio), 
-        final = COALESCE(?, final),
-        patinete = COALESCE(?, patinete),
+        SET patinete = COALESCE(?, patinete),
         usuario = COALESCE(?, usuario),
+        inicio = COALESCE(?, inicio), 
+        final = COALESCE(?, final)
         WHERE id = ?`,
     [
-      req.body.inicio,
-      req.body.final,
       req.body.patinete,
       req.body.usuario,
+      req.body.inicio,
+      req.body.final,
       req.params.id,
     ],
     function (err) {
@@ -161,6 +178,23 @@ app.patch("/aluguel/:id", (req, res, next) => {
       }
     }
   );
+});
+
+// PATCH /aluguel/disponibilidade/:serial - ALTERAR status de patinete (comunica com outro microsserviço)
+app.patch("/aluguel/disponibilidade/:serial", async (req, res) => {
+  try {
+    // Pega parametros e body da requisição e envia para microsserviço via axios
+    const dados = req.body.disponibilidade;
+    const url = `${urlCadastroPatinete}/:serial`;
+    const resposta = await axios.patch(
+      url.replace(":serial", req.params.serial),
+      { data: dados }
+    );
+    res.status(200).send(resposta.data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Erro ao obter dados de patinete.");
+  }
 });
 
 // DELETE /aluguel/:id - REMOVER um aluguel do cadastro
@@ -177,14 +211,22 @@ app.delete("/aluguel/:id", (req, res, next) => {
   });
 });
 
-// Verifica se há entradas em outros microsserviços
-async function usuarioExiste(cpf) {
+// MÉTODOS AUXILIARES
+// Verifica se a entidade existe
+async function entidadeExiste(caminho) {
   try {
-    const res = await axios.get(
-      `localhost:${portaServicoUsuario}/usuario/${cpf}`
-    );
-    console.log(res);
-    if (res.status === 500) {
+    const resposta = await axios.get(caminho);
+    return resposta.status === 200;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Modifica cadastro de entidade
+async function verificaDisponibilidade(caminho) {
+  try {
+    const resposta = await axios.get(caminho);
+    if (resposta.data.disponibilidade === "disponível") {
       return true;
     } else {
       return false;
