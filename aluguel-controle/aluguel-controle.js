@@ -310,7 +310,7 @@ async function alterarDadosExternos(url, dados, res) {
     // Pega parametros e body da requisição e envia para microsserviço via axios
     const resposta = await axios.patch(url, dados);
     console.log("Dados externos alterados com sucesso!");
-    // res.status(200).send(resposta.data);
+    res.status(200).send(resposta.data);
   } catch (err) {
     console.error(err);
     // res.status(500).send("Erro ao alterar dados externos!");
@@ -324,7 +324,7 @@ async function processarPagamento(dados, res) {
     // const resposta = await axios.post(urlServicoPagamento, dados);
     await axios.post(urlServicoPagamento, dados);
     console.log("Pagamento processado com sucesso!");
-    // res.status(200).send(resposta.data);
+    res.status(200).send(resposta.data);
   } catch (err) {
     console.error(err);
     // res.status(500).send("Erro ao processar novo pagamento!");
