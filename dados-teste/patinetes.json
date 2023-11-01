@@ -1,0 +1,62 @@
+[
+  {
+    "serial": "5772",
+    "disponibilidade": "disponível",
+    "lat": -27.578538,
+    "lng": -48.536932
+  },
+  {
+    "serial": "3303",
+    "disponibilidade": "disponível",
+    "lat": -27.581322,
+    "lng": -48.567225
+  },
+  {
+    "serial": "7066",
+    "disponibilidade": "fora de serviço",
+    "lat": -27.595994,
+    "lng": -48.53163
+  },
+  {
+    "serial": "9646",
+    "disponibilidade": "fora de serviço",
+    "lat": -27.626688,
+    "lng": -48.542537
+  },
+  {
+    "serial": "5708",
+    "disponibilidade": "em uso",
+    "lat": -27.595358,
+    "lng": -48.51328
+  },
+  {
+    "serial": "4539",
+    "disponibilidade": "disponível",
+    "lat": -27.580065,
+    "lng": -48.544399
+  },
+  {
+    "serial": "1108",
+    "disponibilidade": "disponível",
+    "lat": -27.62369,
+    "lng": -48.488508
+  },
+  {
+    "serial": "3602",
+    "disponibilidade": "em uso",
+    "lat": -27.610578,
+    "lng": -48.512556
+  },
+  {
+    "serial": "4842",
+    "disponibilidade": "em uso",
+    "lat": -27.595318,
+    "lng": -48.5529
+  },
+  {
+    "serial": "3498",
+    "disponibilidade": "fora de serviço",
+    "lat": -27.606836,
+    "lng": -48.514159
+  }
+]

@@ -10,7 +10,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Geolib - Para calcular distâncias com base nas coordenadas
 const geolib = require("geolib");
 
-// Inicia o Servidor na porta 8081
+// Inicia o Servidor
 let porta = 8081;
 app.listen(porta, () => {
   console.log("Servidor em execução na porta: " + porta);
@@ -25,7 +25,7 @@ var db = new sqlite3.Database("./dados-patinete.db", (err) => {
     console.log("ERRO: não foi possível conectar ao SQLite.");
     throw err;
   }
-  console.log("Conectado ao SQLite!");
+  console.log("Conectado ao banco de dados de patinetes!");
 });
 
 // Cria a tabela 'patinete', caso ela não exista
@@ -35,15 +35,15 @@ db.run(
     disponibilidade TEXT CHECK(disponibilidade IN ('disponível', 'em uso', 'fora de serviço')) NOT NULL,
     lat REAL, 
     lng REAL)`,
-    [],
-    (err) => {
-      if (err) {
-        console.log("ERRO: não foi possível criar tabela.");
-        throw err;
-      }
+  [],
+  (err) => {
+    if (err) {
+      console.log("ERRO: não foi possível criar tabela.");
+      throw err;
     }
-    );
-    
+  }
+);
+
 // MÉTODOS CRUD HTTP
 // POST /patinete - CADASTRAR um novo patinete
 app.post("/patinete", (req, res) => {
@@ -97,32 +97,84 @@ app.get("/patinete/:serial", (req, res) => {
 });
 
 // GET /patinete/:lat/:lng/:raio - RETORNAR todos patinetes disponíveis dentro do raio
-app.get("/patinete/:lat/:lng/:raio", (req, res) => {
-  const centro = {
-    lat: parseFloat(req.params.lat),
-    lng: parseFloat(req.params.lng),
-  };
-  const raio = parseInt(req.params.raio, 10); // Raio em metros
+// app.get("/patinete/:lat/:lng/:raio", (req, res) => {
+  //   const centro = {
+    //     lat: parseFloat(req.params.lat),
+    //     lng: parseFloat(req.params.lng),
+    //   };
+    //   const raio = parseInt(req.params.raio, 10); // Raio em metros
+    
+    //   db.all(
+      //     "SELECT * FROM patinete WHERE disponibilidade = 'disponível'",
+      //     [],
+      //     (err, result) => {
+        //       if (err) {
+          //         console.log(err);
+          //         res.status(500).send("Erro ao obter dados de patinetes.");
+          //       } else if (result.length === 0) {
+            //         console.log("Nenhum patinete encontrado!");
+            //         res.status(500).send("Nenhum patinete encontrado!");
+            //       } else {
+              //         let patinetes = result.filter(
+                //           (patinete) =>
+                //             geolib.isPointWithinRadius(
+                  //               { lat: patinete.lat, lng: patinete.lng },
+                  //               centro,
+                  //               raio
+                  //             ) && patinete.disponibilidade === "disponível"
+                  //         );
+                  //         res.status(200).json(patinetes);
+                  //       }
+                  //     }
+                  //   );
+                  // });
+                  
+// GET /patinete/proximos - RETORNAR todos patinetes disponíveis dentro do raio
+app.get("/patinete/proximos", async (req, res) => {
+  try {
+    // Determina coordenadas de centro e raio de distância
+    const centro = {
+      lat: req.body.lat,
+      lng: req.body.lng,
+    };
+    const raio = req.body.raio; // Raio em metros
 
-  db.all("SELECT * FROM patinete", [], (err, result) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send("Erro ao obter dados de patinetes.");
-    } else if (result.length === 0) {
-      console.log("Nenhum patinete encontrado!");
-      res.status(500).send("Nenhum patinete encontrado!");
-    } else {
-      let patinetes = result.filter(
-        (patinete) =>
-          geolib.isPointWithinRadius(
-            { lat: patinete.lat, lng: patinete.lng },
-            centro,
-            raio
-          ) && patinete.disponibilidade === "disponível"
+    // Retorna patinetes
+    const patinetes = await new Promise((resolve, reject) => {
+      db.all(
+        "SELECT * FROM patinete WHERE disponibilidade = 'disponível'",
+        [],
+        (err, result) => {
+          if (err) {
+            console.error(err);
+            res.status(500).send("Erro ao obter dados de patinetes.");
+            reject(err);
+          } else if (result.length === 0) {
+            console.log("Nenhum patinete encontrado!");
+            res.status(500).send("Nenhum patinete encontrado!");
+          } else {
+            resolve(result);
+          }
+        }
       );
-      res.status(200).json(patinetes);
+    });
+    // Filtra patinetes estão dentro do raio
+    const patinetesProximos = patinetes.filter((patinete) =>
+      geolib.isPointWithinRadius(
+        { lat: patinete.lat, lng: patinete.lng },
+        centro,
+        raio
+      )
+    );
+    if (patinetesProximos.length === 0) {
+      res.status(404).send("Nenhum patinete próximo encontrado!");
+    } else {
+      res.status(200).json(patinetesProximos);
     }
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao obter dados de patinetes.");
+  }
 });
 
 // PATCH /patinete/:serial - ALTERAR o cadastro de um patinete

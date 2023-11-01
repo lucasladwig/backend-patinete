@@ -15,7 +15,7 @@ const urlCadastroPatinete = "localhost:8081/patinete";
 const urlControlePatinete = "localhost:8083/controle";
 const urlServicoPagamento = "localhost:8084/pagamento";
 
-// Inicia o Servidor na porta 8082
+// Inicia o Servidor
 let porta = 8082;
 app.listen(porta, () => {
   console.log("Servidor em execução na porta: " + porta);
@@ -23,7 +23,6 @@ app.listen(porta, () => {
 
 // Importa o package do SQLite
 const sqlite3 = require("sqlite3");
-const { request } = require("http");
 
 // Acessa o arquivo com o banco de dados
 var db = new sqlite3.Database("./dados-aluguel.db", (err) => {
@@ -31,7 +30,7 @@ var db = new sqlite3.Database("./dados-aluguel.db", (err) => {
     console.log("ERRO: não foi possível conectar ao SQLite.");
     throw err;
   }
-  console.log("Conectado ao SQLite!");
+  console.log("Conectado ao banco de dados de aluguéis!");
 });
 
 // Cria a tabela 'aluguel', caso ela não exista
@@ -42,8 +41,9 @@ db.run(
     usuario INTEGER NOT NULL,
     inicio TEXT DEFAULT CURRENT_TIMESTAMP,
     final TEXT,
-    valor REAL
-  )}`,
+    valor REAL,
+    cartao INTEGER NOT NULL
+  )`,
   [],
   (err) => {
     if (err) {
@@ -67,14 +67,14 @@ app.post("/aluguel", async (req, res) => {
       // Verifica se patinetes está disponível
       if (patineteAlvo.data.disponibilidade === "disponível") {
         db.run(
-          `INSERT INTO aluguel(patinete, usuario, inicio) VALUES(?, ?, ?)`,
-          [req.body.patinete, req.body.usuario, req.body.inicio]
+          `INSERT INTO aluguel(patinete, usuario, cartao) VALUES(?, ?, ?)`,
+          [req.body.patinete, req.body.usuario, req.body.cartao]
         );
 
-        // Desloqueia patinete e atualiza sua disponibilidade
+        // Libera patinete e atualiza sua disponibilidade
         await Promise.all([
           alterarDadosExternos(`${urlControlePatinete}/${req.body.patinete}`, {
-            disponibilidade: "em uso",
+            acesso: "liberar",
           }),
           alterarDadosExternos(`${urlCadastroPatinete}/${req.body.patinete}`, {
             disponibilidade: "em uso",
@@ -90,9 +90,7 @@ app.post("/aluguel", async (req, res) => {
     }
   } catch (err) {
     console.error(err);
-    res
-      .status(500)
-      .send("Erro ao cadastrar aluguel. Verifique os dados inseridos");
+    res.status(500).send("Erro ao cadastrar aluguel.");
   }
 });
 
@@ -128,7 +126,7 @@ app.get("/aluguel/:id", (req, res) => {
 
 // GET /aluguel/:usuario - RETORNAR todos aluguéis de um usuário
 app.get("/aluguel/:usuario", (req, res) => {
-  db.get(
+  db.all(
     `SELECT * FROM aluguel WHERE usuario = ?`,
     req.params.usuario,
     (err, result) => {
@@ -147,7 +145,7 @@ app.get("/aluguel/:usuario", (req, res) => {
 
 // GET /aluguel/:patinete - RETORNAR todos aluguéis de um patinete
 app.get("/aluguel/:patinete", (req, res) => {
-  db.get(
+  db.all(
     `SELECT * FROM aluguel WHERE patinete = ?`,
     req.params.patinete,
     (err, result) => {
@@ -164,11 +162,11 @@ app.get("/aluguel/:patinete", (req, res) => {
   );
 });
 
-// PATCH /aluguel/:id - FINALIZAR um aluguel - Atualiza hora final do aluguel e seu valor
+// PATCH /aluguel/:id - FINALIZAR um aluguel
 app.patch("/aluguel/:id", async (req, res) => {
   try {
     // Recupera hora inicial do aluguel
-    const aluguel = await new Promise((resolve, reject) => {
+    const aluguelAtual = await new Promise((resolve, reject) => {
       db.get(
         `SELECT * FROM aluguel WHERE id = ?`,
         req.params.id,
@@ -181,22 +179,25 @@ app.patch("/aluguel/:id", async (req, res) => {
           }
         }
       );
-    });    
+    });
     if (result == null) {
       console.log("Aluguel não encontrado.");
       return res.status(404).send("Aluguel não encontrado.");
     }
 
     // Calcula valor do aluguel
-    const valor = calcularValorAluguel(aluguel.inicio, req.body.final);
+    const valorTotal = calcularValorAluguel(
+      aluguelAtual.inicio,
+      req.body.final
+    );
 
     // Atualiza aluguel
     db.run(
       `UPDATE aluguel  
       SET final = COALESCE(?, final), 
-      valor = COALESCE(?, valor) 
+      valor = COALESCE(?, valor),
       WHERE id = ?`,
-      [req.body.final, valor, req.params.id],
+      [req.body.final, valorTotal, req.params.id],
       (err) => {
         if (err) {
           console.error(err);
@@ -212,14 +213,22 @@ app.patch("/aluguel/:id", async (req, res) => {
       }
     );
 
-    // Bloqueia patinete e atualiza sua disponibilidade
+    // Bloqueia patinete, atualiza disponibilidade e dispara pagamento
+    const dadosPagamento = {
+      usuario: aluguelAtual.usuario,
+      valor: valorTotal,
+      cartao: aluguelAtual.cartao,
+    };
     await Promise.all([
-      alterarDadosExternos(`${urlCadastroPatinete}/${req.body.patinete}`, {
-        disponibilidade: "disponível",
+      alterarDadosExternos(`${urlControlePatinete}/${aluguelAtual.patinete}`, {
+        acesso: "bloquear",
       }),
-      alterarDadosExternos(`${urlControlePatinete}/${req.body.patinete}`, {
+      alterarDadosExternos(`${urlCadastroPatinete}/${aluguelAtual.patinete}`, {
         disponibilidade: "disponível",
+        lat: req.body.lat,
+        lng: req.body.lng,
       }),
+      dispararPagamento(dadosPagamento),
     ]);
   } catch (error) {
     console.error(error);
@@ -252,7 +261,21 @@ async function alterarDadosExternos(url, dados) {
     res.status(200).send(resposta.data);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Erro ao obter dados de patinete.");
+    res.status(500).send("Erro ao alterar dados externos.");
+  }
+}
+
+// Disparar pagamento dados em microsserviço externo
+async function dispararPagamento(dados) {
+  try {
+    // Pega parametros e body da requisição e envia para microsserviço via axios
+    const resposta = await axios.post(urlServicoPagamento, {
+      data: dados,
+    });
+    res.status(200).send(resposta.data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao cadastrar dados de pagamento.");
   }
 }
 
@@ -266,5 +289,6 @@ function calcularValorAluguel(inicio, final) {
   // Cálculo do valor total (Regra de negócio)
   const taxaFixa = 5.0;
   const taxaMinuto = 0.15;
-  return taxaFixa + taxaMinuto * minutosTotal;
+  const valorTotal = taxaFixa + taxaMinuto * minutosTotal;
+  return valorTotal.toFixed(2)
 }

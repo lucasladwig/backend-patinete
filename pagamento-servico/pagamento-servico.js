@@ -7,7 +7,7 @@ const bodyParser = require("body-parser");
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Inicia o Servidor na porta 8084
+// Inicia o Servidor
 let porta = 8084;
 app.listen(porta, () => {
   console.log("Servidor de pagamentos em execução na porta: " + porta);
@@ -22,16 +22,16 @@ var db = new sqlite3.Database("./dados-pagamento.db", (err) => {
     console.log("ERRO: não foi possível conectar ao SQLite.");
     throw err;
   }
-  console.log("Conectado ao SQLite!");
+  console.log("Conectado ao banco de dados de pagamentos!");
 });
 
 // Cria a tabela 'pagamento', caso ela não exista
 db.run(
   `CREATE TABLE IF NOT EXISTS pagamento 
-  (id INTEGER PRIMARY KEY NOT NULL UNIQUE AUTO_INCREMENT, 
+  (id INTEGER PRIMARY KEY NOT NULL UNIQUE, 
     usuario INTEGER NOT NULL,
-    valor INTEGER NOT NULL,
-    cartao INTEGER NOT NULL,)`,
+    valor REAL NOT NULL,
+    cartao INTEGER NOT NULL)`,
   [],
   (err) => {
     if (err) {
@@ -53,14 +53,18 @@ app.post("/pagamento", (req, res) => {
         res.status(500).send("Erro ao cadastrar pagamento.");
       } else {
         console.log("Pagamento cadastrado com sucesso!");
-        res.status(200).send("Pagamento cadastrado com sucesso!");
+        res
+          .status(200)
+          .send(
+            `Cobrança enviada à operadora de pagamentos!\n- Valor: R\$${req.body.valor}\n- Cartão: ${req.body.cartao}`
+          );
       }
     }
   );
 });
 
 // GET /pagamento - RETORNAR todos os pagamentos
-app.get("/pagamento", (req, res, next) => {
+app.get("/pagamento", (req, res) => {
   db.all(`SELECT * FROM pagamento`, [], (err, result) => {
     if (err) {
       console.log(err);
@@ -75,7 +79,7 @@ app.get("/pagamento", (req, res, next) => {
 });
 
 // GET /pagamento/:id - RETORNAR pagamento com base no id
-app.get("/pagamento/:id", (req, res, next) => {
+app.get("/pagamento/:id", (req, res) => {
   db.get(
     `SELECT * FROM pagamento WHERE id = ?`,
     req.params.id,
@@ -95,7 +99,7 @@ app.get("/pagamento/:id", (req, res, next) => {
 
 // GET /pagamento/:usuario - RETORNAR todos pagamentos de um usuário
 app.get("/pagamento/:usuario", (req, res) => {
-  db.get(
+  db.all(
     `SELECT * FROM pagamento WHERE usuario = ?`,
     req.params.usuario,
     (err, result) => {
@@ -135,7 +139,7 @@ app.patch("/pagamento/:id", (req, res) => {
 });
 
 // DELETE /pagamento/:id - REMOVER um pagamento do cadastro
-app.delete("/pagamento/:id", (req, res, next) => {
+app.delete("/pagamento/:id", (req, res) => {
   db.run(`DELETE FROM pagamento WHERE id = ?`, req.params.id, function (err) {
     if (err) {
       res.status(500).send("Erro ao remover pagamento.");
