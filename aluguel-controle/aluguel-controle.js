@@ -42,7 +42,7 @@ db.run(
     usuario INTEGER NOT NULL,
     inicio TEXT DEFAULT CURRENT_TIMESTAMP,
     final TEXT,
-    custo REAL
+    valor REAL
   )}`,
   [],
   (err) => {
@@ -55,42 +55,44 @@ db.run(
 
 // MÉTODOS CRUD HTTP
 // POST /aluguel - INICIAR um novo aluguel
-app.post("/aluguel", (req, res) => {
-  // Verifica se usuario e patinete existem no banco de dados
-  if (
-    entidadeExiste(`${urlCadastroPatinete}/${req.body.patinete}`) &&
-    entidadeExiste(`${urlCadastroUsuario}/${req.body.usuario}`)
-  ) {
-    // Verifica se o patinete está disponível
-    if (
-      verificaDisponibilidade(`${urlCadastroPatinete}/${req.body.patinete}`)
-    ) {
-      // Insere novo aluguel no banco de dados
-      db.run(
-        `INSERT INTO aluguel(patinete, usuario, inicio) VALUES(?, ?, ?)`,
-        [req.body.patinete, req.body.usuario, req.body.inicio],
-        (err) => {
-          if (err) {
-            console.log(err);
-            res.status(500).send("Erro ao cadastrar aluguel.");
-          } else {
-            console.log("Aluguel cadastrado com sucesso!");
-            res.status(200).send("Aluguel cadastrado com sucesso!");
-          }
-        }
-      );
-      // Atualiza disponibilidade e desbloqueia patinete (bancos de dados externo)
-      alterarDadosExternos(`${urlCadastroPatinete}/${req.body.patinete}`, {
-        disponibilidade: "em uso",
-      });
-      alterarDadosExternos(`${urlControlePatinete}/${req.body.patinete}`, {
-        disponibilidade: "em uso",
-      });
+app.post("/aluguel", async (req, res) => {
+  try {
+    // Busca usuário e patinete nos bancos de dados
+    const [patineteAlvo, usuarioAlvo] = await Promise.all([
+      axios.get(`${urlCadastroPatinete}/${req.body.patinete}`),
+      axios.get(`${urlCadastroUsuario}/${req.body.usuario}`),
+    ]);
+    // Verifica se patinete e usuário existem
+    if (patineteAlvo.data && usuarioAlvo.data) {
+      // Verifica se patinetes está disponível
+      if (patineteAlvo.data.disponibilidade === "disponível") {
+        db.run(
+          `INSERT INTO aluguel(patinete, usuario, inicio) VALUES(?, ?, ?)`,
+          [req.body.patinete, req.body.usuario, req.body.inicio]
+        );
+
+        // Desloqueia patinete e atualiza sua disponibilidade
+        await Promise.all([
+          alterarDadosExternos(`${urlControlePatinete}/${req.body.patinete}`, {
+            disponibilidade: "em uso",
+          }),
+          alterarDadosExternos(`${urlCadastroPatinete}/${req.body.patinete}`, {
+            disponibilidade: "em uso",
+          }),
+        ]);
+        console.log("Aluguel cadastrado com sucesso!");
+        res.status(200).send("Aluguel cadastrado com sucesso!");
+      } else {
+        res.status(500).send("Patinete indisponível!");
+      }
     } else {
-      res.status(500).send("Patinete indisponível!");
+      res.status(500).send("Usuário ou patinete não existem!");
     }
-  } else {
-    res.status(500).send("Usuário ou patinete não existem!");
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .send("Erro ao cadastrar aluguel. Verifique os dados inseridos");
   }
 });
 
@@ -98,7 +100,7 @@ app.post("/aluguel", (req, res) => {
 app.get("/aluguel", (req, res) => {
   db.all(`SELECT * FROM aluguel`, [], (err, result) => {
     if (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send("Erro ao obter dados de aluguéis.");
     } else if (result.length === 0) {
       console.log("Lista de aluguéis vazia!");
@@ -113,7 +115,7 @@ app.get("/aluguel", (req, res) => {
 app.get("/aluguel/:id", (req, res) => {
   db.get(`SELECT * FROM aluguel WHERE id = ?`, req.params.id, (err, result) => {
     if (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send("Erro ao obter dados de aluguéis.");
     } else if (result == null) {
       console.log("Aluguel não encontrado.");
@@ -131,7 +133,7 @@ app.get("/aluguel/:usuario", (req, res) => {
     req.params.usuario,
     (err, result) => {
       if (err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send("Erro ao obter dados de aluguéis.");
       } else if (result == null) {
         console.log("Aluguel não encontrado.");
@@ -150,7 +152,7 @@ app.get("/aluguel/:patinete", (req, res) => {
     req.params.patinete,
     (err, result) => {
       if (err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send("Erro ao obter dados de aluguéis.");
       } else if (result == null) {
         console.log("Aluguel não encontrado.");
@@ -162,48 +164,66 @@ app.get("/aluguel/:patinete", (req, res) => {
   );
 });
 
-// PATCH /aluguel/:id - FINALIZAR um aluguel - Altera apenas data/hora de final
-app.patch("/aluguel/:id", (req, res) => {
-  db.run(
-    `UPDATE aluguel 
-        SET final = COALESCE(?, final)
-        WHERE id = ?`,
-    [req.body.final, req.params.id],
-    function (err) {
-      if (err) {
-        res.status(500).send("Erro ao alterar dados.");
-      } else if (this.changes == 0) {
-        console.log("Aluguel não encontrado.");
-        res.status(404).send("Aluguel não encontrado.");
-      } else {
-        res.status(200).send("Aluguel finalizado com sucesso!");
-      }
-    }
-  );
-  // Atualiza disponibilidade e bloqueia patinete (bancos de dados externo)
-  alterarDadosExternos(`${urlCadastroPatinete}/${req.body.patinete}`, {
-    disponibilidade: "disponível",
-  });
-  alterarDadosExternos(`${urlControlePatinete}/${req.body.patinete}`, {
-    disponibilidade: "disponível",
-  });
-  // Calcula
-});
-
-// PATCH /aluguel/disponibilidade/:serial - ALTERAR status de patinete (comunica com outro microsserviço)
-app.patch("/aluguel/disponibilidade/:serial", async (req, res) => {
+// PATCH /aluguel/:id - FINALIZAR um aluguel - Atualiza hora final do aluguel e seu valor
+app.patch("/aluguel/:id", async (req, res) => {
   try {
-    // Pega parametros e body da requisição e envia para microsserviço via axios
-    const dados = req.body.disponibilidade;
-    const url = `${urlCadastroPatinete}/:serial`;
-    const resposta = await axios.patch(
-      url.replace(":serial", req.params.serial),
-      { data: dados }
+    // Recupera hora inicial do aluguel
+    const aluguel = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM aluguel WHERE id = ?`,
+        req.params.id,
+        (err, result) => {
+          if (err) {
+            console.error(err);
+            reject(err);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+    });    
+    if (result == null) {
+      console.log("Aluguel não encontrado.");
+      return res.status(404).send("Aluguel não encontrado.");
+    }
+
+    // Calcula valor do aluguel
+    const valor = calcularValorAluguel(aluguel.inicio, req.body.final);
+
+    // Atualiza aluguel
+    db.run(
+      `UPDATE aluguel  
+      SET final = COALESCE(?, final), 
+      valor = COALESCE(?, valor) 
+      WHERE id = ?`,
+      [req.body.final, valor, req.params.id],
+      (err) => {
+        if (err) {
+          console.error(err);
+          return res
+            .status(500)
+            .send("Erro ao atualizar dados finais do aluguel.");
+        } else if (this.changes == 0) {
+          console.log("Aluguel não encontrado.");
+          return res.status(404).send("Aluguel não encontrado.");
+        } else {
+          return res.status(200).send("Aluguel finalizado com sucesso!");
+        }
+      }
     );
-    res.status(200).send(resposta.data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Erro ao obter dados de patinete.");
+
+    // Bloqueia patinete e atualiza sua disponibilidade
+    await Promise.all([
+      alterarDadosExternos(`${urlCadastroPatinete}/${req.body.patinete}`, {
+        disponibilidade: "disponível",
+      }),
+      alterarDadosExternos(`${urlControlePatinete}/${req.body.patinete}`, {
+        disponibilidade: "disponível",
+      }),
+    ]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Erro ao obter dados de aluguéis.");
   }
 });
 
@@ -221,22 +241,8 @@ app.delete("/aluguel/:id", (req, res) => {
   });
 });
 
-// MÉTODOS DE COMUNICAÇÃO EXTERNA AO SERVIÇO (AXIOS)
-// Verifica se patinete está disponível
-async function verificaDisponibilidade(url) {
-  try {
-    const resposta = await axios.get(url);
-    if (resposta.data.disponibilidade === "disponível") {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Alterar dados
+// MÉTODOS AUXILIARES
+// Alterar dados em microsserviço externo
 async function alterarDadosExternos(url, dados) {
   try {
     // Pega parametros e body da requisição e envia para microsserviço via axios
@@ -250,20 +256,9 @@ async function alterarDadosExternos(url, dados) {
   }
 }
 
-// Verifica se a entidade existe
-async function entidadeExiste(url) {
-  try {
-    const resposta = await axios.get(url);
-    return resposta.status === 200;
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// MÉTODOS AUXILIARES
-// Calcula valor do aluguel
-function calculaValorAluguel(inicio, final) {
-  // Converte tempos em objetos Date e calcula os minutos do aluguel
+// Calcular valor total do aluguel
+function calcularValorAluguel(inicio, final) {
+  // Calcula quantos tempo luveou o aluguel (em minutos)
   const tempoInicio = new Date(inicio);
   const tempoFinal = new Date(final);
   const minutosTotal = tempoFinal.getTime() - tempoInicio.getTime() / 60000;
