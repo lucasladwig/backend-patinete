@@ -49,7 +49,7 @@ app.post("/pagamento", (req, res) => {
     [req.body.usuario, req.body.valor, req.body.cartao],
     (err) => {
       if (err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send("Erro ao cadastrar pagamento.");
       } else {
         console.log("Pagamento cadastrado com sucesso!");
@@ -67,7 +67,7 @@ app.post("/pagamento", (req, res) => {
 app.get("/pagamento", (req, res) => {
   db.all(`SELECT * FROM pagamento`, [], (err, result) => {
     if (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send("Erro ao obter dados de pagamentos.");
     } else if (result.length === 0) {
       console.log("Lista de pagamentos vazia!");
@@ -85,7 +85,7 @@ app.get("/pagamento/:id", (req, res) => {
     req.params.id,
     (err, result) => {
       if (err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send("Erro ao obter dados de pagamentos.");
       } else if (result == null) {
         console.log("Pagamento não encontrado.");
@@ -104,7 +104,7 @@ app.get("/pagamento/:usuario", (req, res) => {
     req.params.usuario,
     (err, result) => {
       if (err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send("Erro ao obter dados de pagamentos.");
       } else if (result == null) {
         console.log("Pagamento não encontrado.");
@@ -127,6 +127,7 @@ app.patch("/pagamento/:id", (req, res) => {
     [req.body.usuario, req.body.valor, req.body.cartao, req.params.id],
     function (err) {
       if (err) {
+        console.error(err);
         res.status(500).send("Erro ao alterar dados.");
       } else if (this.changes == 0) {
         console.log("Pagamento não encontrado.");
@@ -142,6 +143,7 @@ app.patch("/pagamento/:id", (req, res) => {
 app.delete("/pagamento/:id", (req, res) => {
   db.run(`DELETE FROM pagamento WHERE id = ?`, req.params.id, function (err) {
     if (err) {
+      console.error(err);
       res.status(500).send("Erro ao remover pagamento.");
     } else if (this.changes == 0) {
       console.log("Pagamento não encontrado.");

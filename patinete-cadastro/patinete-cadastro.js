@@ -52,7 +52,7 @@ app.post("/patinete", (req, res) => {
     [req.body.serial, req.body.disponibilidade, req.body.lat, req.body.lng],
     (err) => {
       if (err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send("Erro ao cadastrar patinete.");
       } else {
         console.log("Patinete cadastrado com sucesso!");
@@ -66,7 +66,7 @@ app.post("/patinete", (req, res) => {
 app.get("/patinete", (req, res) => {
   db.all(`SELECT * FROM patinete`, [], (err, result) => {
     if (err) {
-      console.log(err);
+      console.error(err);
       res.status(500).send("Erro ao obter dados de patinetes.");
     } else if (result.length === 0) {
       console.log("Lista de patinetes vazia!");
@@ -84,11 +84,11 @@ app.get("/patinete/:serial", (req, res) => {
     req.params.serial,
     (err, result) => {
       if (err) {
-        console.log(err);
+        console.error(err);
         res.status(500).send("Erro ao obter dados de patinetes.");
       } else if (result == null) {
-        console.log("Patinete não encontrado.");
-        res.status(404).send("Patinete não encontrado.");
+        console.log("Patinete com este serial não encontrado.");
+        res.status(404).send("Patinete com este serial não encontrado.");
       } else {
         res.status(200).json(result);
       }
@@ -97,47 +97,14 @@ app.get("/patinete/:serial", (req, res) => {
 });
 
 // GET /patinete/:lat/:lng/:raio - RETORNAR todos patinetes disponíveis dentro do raio
-// app.get("/patinete/:lat/:lng/:raio", (req, res) => {
-  //   const centro = {
-    //     lat: parseFloat(req.params.lat),
-    //     lng: parseFloat(req.params.lng),
-    //   };
-    //   const raio = parseInt(req.params.raio, 10); // Raio em metros
-    
-    //   db.all(
-      //     "SELECT * FROM patinete WHERE disponibilidade = 'disponível'",
-      //     [],
-      //     (err, result) => {
-        //       if (err) {
-          //         console.log(err);
-          //         res.status(500).send("Erro ao obter dados de patinetes.");
-          //       } else if (result.length === 0) {
-            //         console.log("Nenhum patinete encontrado!");
-            //         res.status(500).send("Nenhum patinete encontrado!");
-            //       } else {
-              //         let patinetes = result.filter(
-                //           (patinete) =>
-                //             geolib.isPointWithinRadius(
-                  //               { lat: patinete.lat, lng: patinete.lng },
-                  //               centro,
-                  //               raio
-                  //             ) && patinete.disponibilidade === "disponível"
-                  //         );
-                  //         res.status(200).json(patinetes);
-                  //       }
-                  //     }
-                  //   );
-                  // });
-                  
-// GET /patinete/proximos - RETORNAR todos patinetes disponíveis dentro do raio
-app.get("/patinete/proximos", async (req, res) => {
+app.get("/patinete/:lat/:lng/:raio", async (req, res) => {
   try {
     // Determina coordenadas de centro e raio de distância
     const centro = {
-      lat: req.body.lat,
-      lng: req.body.lng,
+      lat: req.params.lat,
+      lng: req.params.lng,
     };
-    const raio = req.body.raio; // Raio em metros
+    const raio = req.params.raio; // Raio em metros
 
     // Retorna patinetes
     const patinetes = await new Promise((resolve, reject) => {
@@ -177,6 +144,7 @@ app.get("/patinete/proximos", async (req, res) => {
   }
 });
 
+
 // PATCH /patinete/:serial - ALTERAR o cadastro de um patinete
 app.patch("/patinete/:serial", (req, res) => {
   db.run(
@@ -188,6 +156,7 @@ app.patch("/patinete/:serial", (req, res) => {
     [req.body.disponibilidade, req.body.lat, req.body.lng, req.params.serial],
     function (err) {
       if (err) {
+        console.error(err);
         res.status(500).send("Erro ao alterar dados.");
       } else if (this.changes == 0) {
         console.log("Patinete não encontrado.");
@@ -202,10 +171,11 @@ app.patch("/patinete/:serial", (req, res) => {
 // DELETE /patinete/:serial - REMOVER um patinete do cadastro
 app.delete("/patinete/:serial", (req, res) => {
   db.run(
-    `DELETE FROM cadastro WHERE serial = ?`,
+    `DELETE FROM patinete WHERE serial = ?`,
     req.params.serial,
     function (err) {
       if (err) {
+        console.error(err);
         res.status(500).send("Erro ao remover patinete.");
       } else if (this.changes == 0) {
         console.log("Patinete não encontrado.");

@@ -238,8 +238,9 @@ app.patch("/aluguel/:id", async (req, res) => {
 
 // DELETE /aluguel/:id - REMOVER um aluguel do cadastro
 app.delete("/aluguel/:id", (req, res) => {
-  db.run(`DELETE FROM cadastro WHERE id = ?`, req.params.id, function (err) {
+  db.run(`DELETE FROM aluguel WHERE id = ?`, req.params.id, function (err) {
     if (err) {
+      console.error(err)
       res.status(500).send("Erro ao remover aluguel.");
     } else if (this.changes == 0) {
       console.log("Aluguel não encontrado.");

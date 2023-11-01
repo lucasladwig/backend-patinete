@@ -81,7 +81,7 @@ app.get("/usuario/:cpf", (req, res) => {
     req.params.cpf,
     (err, result) => {
       if (err) {
-        console.log("Erro: " + err);
+        console.log(err);
         res.status(500).send("Erro ao obter dados do usuário.");
       } else if (result == null) {
         console.log("Usuário não encontrado.");
@@ -104,6 +104,7 @@ app.patch("/usuario/:cpf", (req, res) => {
     [req.body.nome, req.body.email, req.body.telefone, req.params.cpf],
     function (err) {
       if (err) {
+        console.error(err);
         res.status(500).send("Erro ao alterar dados de usuário.");
       } else if (this.changes == 0) {
         console.log("Usuário não encontrado.");
@@ -117,8 +118,9 @@ app.patch("/usuario/:cpf", (req, res) => {
 
 // DELETE /usuario/:cpf - REMOVER um usuário do cadastro
 app.delete("/usuario/:cpf", (req, res) => {
-  db.run(`DELETE FROM cadastro WHERE cpf = ?`, req.params.cpf, function (err) {
+  db.run(`DELETE FROM usuario WHERE cpf = ?`, req.params.cpf, function (err) {
     if (err) {
+      console.error(err);
       res.status(500).send("Erro ao remover usuário.");
     } else if (this.changes == 0) {
       console.log("Usuário não encontrado.");
