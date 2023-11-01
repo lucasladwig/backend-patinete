@@ -19,7 +19,7 @@ const sqlite3 = require("sqlite3");
 // Acessa o arquivo com o banco de dados
 var db = new sqlite3.Database("./dados-usuario.db", (err) => {
   if (err) {
-    console.log("ERRO: não foi possível conectar ao SQLite.");
+    console.log("Erro ao tentar conectar ao SQLite!");
     throw err;
   }
   console.log("Conectado ao banco de dados de usuários!");
@@ -35,7 +35,7 @@ db.run(
   [],
   (err) => {
     if (err) {
-      console.log("ERRO: não foi possível criar tabela.");
+      console.log("Erro ao tentar criar tabela de usuários!");
       throw err;
     }
   }
@@ -50,10 +50,12 @@ app.post("/usuario", (req, res) => {
     (err) => {
       if (err) {
         console.log(err);
-        res.status(500).send("Erro ao cadastrar usuário.");
+        res.status(500).send("Erro ao cadastrar usuário!");
       } else {
-        console.log("Usuário cadastrado com sucesso!");
-        res.status(200).send("Usuário cadastrado com sucesso!");
+        console.log(`Usuário cpf ${req.params.cpf} cadastrado com sucesso!`);
+        res
+          .status(200)
+          .send(`Usuário cpf ${req.params.cpf} cadastrado com sucesso!`);
       }
     }
   );
@@ -64,11 +66,12 @@ app.get("/usuario", (req, res) => {
   db.all(`SELECT * FROM usuario`, [], (err, result) => {
     if (err) {
       console.log(err);
-      res.status(500).send("Erro ao obter dados de usuários.");
+      res.status(500).send("Erro ao obter dados de usuários!");
     } else if (result.length === 0) {
-        console.log("Lista de usuários vazia!");
-        res.status(500).send("Lista de usuários vazia!");
+      console.log("Lista de usuários vazia!");
+      res.status(500).send("Lista de usuários vazia!");
     } else {
+      console.log("Lista de usuários encontrada!");
       res.status(200).json(result);
     }
   });
@@ -82,11 +85,12 @@ app.get("/usuario/:cpf", (req, res) => {
     (err, result) => {
       if (err) {
         console.log(err);
-        res.status(500).send("Erro ao obter dados do usuário.");
+        res.status(500).send("Erro ao acessar lista de usuários!");
       } else if (result == null) {
-        console.log("Usuário não encontrado.");
-        res.status(404).send("Usuário não encontrado.");
+        console.log(`Usuário cpf ${req.params.cpf} não encontrado!`);
+        res.status(404).send(`Usuário cpf ${req.params.cpf} não encontrado!`);
       } else {
+        console.log(`Usuário cpf ${req.params.cpf} encontrado!`);
         res.status(200).json(result);
       }
     }
@@ -105,12 +109,17 @@ app.patch("/usuario/:cpf", (req, res) => {
     function (err) {
       if (err) {
         console.error(err);
-        res.status(500).send("Erro ao alterar dados de usuário.");
+        res
+          .status(500)
+          .send(`Erro ao alterar dados do usuário cpf ${req.params.cpf}!`);
       } else if (this.changes == 0) {
-        console.log("Usuário não encontrado.");
-        res.status(404).send("Usuário não encontrado.");
+        console.log(`Usuário cpf ${req.params.cpf} não encontrado!`);
+        res.status(404).send(`Usuário cpf ${req.params.cpf} não encontrado!`);
       } else {
-        res.status(200).send("Usuário alterado com sucesso!");
+        console.log(`Usuário cpf ${req.params.cpf} alterado com sucesso!`);
+        res
+          .status(200)
+          .send(`Usuário cpf ${req.params.cpf} alterado com sucesso!`);
       }
     }
   );
@@ -121,12 +130,15 @@ app.delete("/usuario/:cpf", (req, res) => {
   db.run(`DELETE FROM usuario WHERE cpf = ?`, req.params.cpf, function (err) {
     if (err) {
       console.error(err);
-      res.status(500).send("Erro ao remover usuário.");
+      res.status(500).send(`Erro ao remover usuário cpf ${req.params.cpf}!`);
     } else if (this.changes == 0) {
-      console.log("Usuário não encontrado.");
-      res.status(404).send("Usuário não encontrado.");
+      console.log(`Usuário cpf ${req.params.cpf} não encontrado!`);
+      res.status(404).send(`Usuário cpf ${req.params.cpf} não encontrado!`);
     } else {
-      res.status(200).send("Usuário removido com sucesso!");
+      console.log(`Usuário cpf ${req.params.cpf} removido com sucesso!`);
+      res
+        .status(200)
+        .send(`Usuário cpf ${req.params.cpf} removido com sucesso!`);
     }
   });
 });

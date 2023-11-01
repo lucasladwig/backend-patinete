@@ -25,7 +25,6 @@ app.patch("/controle/:serial", (req, res) => {
         res.status(200).send(`Patinete número ${req.params.serial} LIBERADO para uso durante aluguel.`);
     } else {
         console.log("Favor enviar apenar 'bloquear' ou 'liberar'.");
-        res.status(500).send("Favor enviar apenar 'bloquear' ou 'liberar'.");
-        
+        res.status(500).send("Favor enviar apenar 'bloquear' ou 'liberar'.");        
     }
 });

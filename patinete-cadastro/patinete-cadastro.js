@@ -22,7 +22,7 @@ const sqlite3 = require("sqlite3");
 // Acessa o arquivo com o banco de dados
 var db = new sqlite3.Database("./dados-patinete.db", (err) => {
   if (err) {
-    console.log("ERRO: não foi possível conectar ao SQLite.");
+    console.log("Erro ao tentar conectar ao SQLite!");
     throw err;
   }
   console.log("Conectado ao banco de dados de patinetes!");
@@ -38,7 +38,7 @@ db.run(
   [],
   (err) => {
     if (err) {
-      console.log("ERRO: não foi possível criar tabela.");
+      console.error("Erro ao tentar criar tabela de patinetes!");
       throw err;
     }
   }
@@ -53,10 +53,14 @@ app.post("/patinete", (req, res) => {
     (err) => {
       if (err) {
         console.error(err);
-        res.status(500).send("Erro ao cadastrar patinete.");
+        res.status(500).send("Erro ao cadastrar patinete!");
       } else {
-        console.log("Patinete cadastrado com sucesso!");
-        res.status(200).send("Patinete cadastrado com sucesso!");
+        console.log(
+          `Patinete serial ${req.params.serial} cadastrado com sucesso!`
+        );
+        res
+          .status(200)
+          .send(`Patinete serial ${req.params.serial} cadastrado com sucesso!`);
       }
     }
   );
@@ -67,11 +71,12 @@ app.get("/patinete", (req, res) => {
   db.all(`SELECT * FROM patinete`, [], (err, result) => {
     if (err) {
       console.error(err);
-      res.status(500).send("Erro ao obter dados de patinetes.");
+      res.status(500).send("Erro ao acessar lista de patinetes!");
     } else if (result.length === 0) {
       console.log("Lista de patinetes vazia!");
       res.status(500).send("Lista de patinetes vazia!");
     } else {
+      console.log("Lista de patinetes encontrada!");
       res.status(200).json(result);
     }
   });
@@ -85,11 +90,14 @@ app.get("/patinete/:serial", (req, res) => {
     (err, result) => {
       if (err) {
         console.error(err);
-        res.status(500).send("Erro ao obter dados de patinetes.");
+        res.status(500).send("Erro ao acessar lista de patinetes!");
       } else if (result == null) {
-        console.log("Patinete com este serial não encontrado.");
-        res.status(404).send("Patinete com este serial não encontrado.");
+        console.log(`Patinete serial ${req.params.serial} não encontrado!`);
+        res
+          .status(404)
+          .send(`Patinete serial ${req.params.serial} não encontrado!`);
       } else {
+        console.log(`Patinete serial ${req.params.serial} encontrado!`);
         res.status(200).json(result);
       }
     }
@@ -106,7 +114,7 @@ app.get("/patinete/:lat/:lng/:raio", async (req, res) => {
     };
     const raio = req.params.raio; // Raio em metros
 
-    // Retorna patinetes
+    // Retorna patinetes disponíveis
     const patinetes = await new Promise((resolve, reject) => {
       db.all(
         "SELECT * FROM patinete WHERE disponibilidade = 'disponível'",
@@ -114,11 +122,11 @@ app.get("/patinete/:lat/:lng/:raio", async (req, res) => {
         (err, result) => {
           if (err) {
             console.error(err);
-            res.status(500).send("Erro ao obter dados de patinetes.");
+            res.status(500).send("Erro ao acessar lista de patinetes!");
             reject(err);
           } else if (result.length === 0) {
-            console.log("Nenhum patinete encontrado!");
-            res.status(500).send("Nenhum patinete encontrado!");
+            console.log("Nenhum patinete disponível encontrado!");
+            res.status(500).send("Nenhum patinete disponível encontrado!");
           } else {
             resolve(result);
           }
@@ -136,14 +144,14 @@ app.get("/patinete/:lat/:lng/:raio", async (req, res) => {
     if (patinetesProximos.length === 0) {
       res.status(404).send("Nenhum patinete próximo encontrado!");
     } else {
+      console.log("Lista de patinetes próximos encontrada!");
       res.status(200).json(patinetesProximos);
     }
   } catch (err) {
     console.error(err);
-    res.status(500).send("Erro ao obter dados de patinetes.");
+    res.status(500).send("Erro ao obter lista de patinetes!");
   }
 });
-
 
 // PATCH /patinete/:serial - ALTERAR o cadastro de um patinete
 app.patch("/patinete/:serial", (req, res) => {
@@ -157,12 +165,23 @@ app.patch("/patinete/:serial", (req, res) => {
     function (err) {
       if (err) {
         console.error(err);
-        res.status(500).send("Erro ao alterar dados.");
+        res
+          .status(500)
+          .send(
+            `Erro ao alterar dados do patinete serial ${req.params.serial}!`
+          );
       } else if (this.changes == 0) {
-        console.log("Patinete não encontrado.");
-        res.status(404).send("Patinete não encontrado.");
+        console.log(`Patinete serial ${req.params.serial} não encontrado!`);
+        res
+          .status(404)
+          .send(`Patinete serial ${req.params.serial} não encontrado!`);
       } else {
-        res.status(200).send("Patinete alterado com sucesso!");
+        console.log(
+          `Patinete serial ${req.params.serial} alterado com sucesso!`
+        );
+        res
+          .status(200)
+          .send(`Patinete serial ${req.params.serial} alterado com sucesso!`);
       }
     }
   );
@@ -176,12 +195,21 @@ app.delete("/patinete/:serial", (req, res) => {
     function (err) {
       if (err) {
         console.error(err);
-        res.status(500).send("Erro ao remover patinete.");
+        res
+          .status(500)
+          .send(`Erro ao remover patinete serial ${req.params.serial}!`);
       } else if (this.changes == 0) {
-        console.log("Patinete não encontrado.");
-        res.status(404).send("Patinete não encontrado.");
+        console.log(`Patinete serial ${req.params.serial} não encontrado!`);
+        res
+          .status(404)
+          .send(`Patinete serial ${req.params.serial} não encontrado!`);
       } else {
-        res.status(200).send("Patinete removido com sucesso!");
+        console.log(
+          `Patinete serial ${req.params.serial} removido com sucesso!`
+        );
+        res
+          .status(200)
+          .send(`Patinete serial ${req.params.serial} removido com sucesso!`);
       }
     }
   );
