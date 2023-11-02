@@ -1,8 +1,8 @@
 const httpProxy = require("express-http-proxy");
 const express = require("express");
-const app = express();
-var logger = require("morgan");
+const logger = require("morgan");
 
+const app = express();
 app.use(logger("dev"));
 
 function selectProxyHost(req) {

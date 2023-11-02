@@ -1,0 +1,29 @@
+/usuario
+{
+    "cpf": {{cpf}},
+    "nome": {{nome}},
+    "email": {{email}},
+    "telefone": {{telefone}}
+}
+
+/patinete
+{
+    "serial": {{serial}},
+    "disponibilidade": {{disponibilidade}},
+    "lat": {{lat}},
+    "lng": {{lng}}
+}
+
+/aluguel
+{
+    "patinete": {{patinete}},
+    "usuario": {{usuario}},
+    "cartao": {{cartao}}
+}
+
+/pagamento
+{
+    "usuario": {{usuario}},
+    "valor": {{valor}},
+    "cartao": {{cartao}}
+}

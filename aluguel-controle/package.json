@@ -1,7 +1,6 @@
 {
   "name": "aluguel-controle",
   "version": "1.0.0",
-  "description": "",
   "main": "aluguel-controle.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,5 +15,6 @@
     "install": "^0.13.0",
     "npm": "^10.2.1",
     "sqlite3": "^5.1.6"
-  }
+  },
+  "description": ""
 }
