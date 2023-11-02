@@ -232,7 +232,10 @@ app.patch("/aluguel/:id", async (req, res) => {
       aluguelAtual.inicio,
       req.body.final
     );
-
+    
+    if (aluguelAtual.final.length() != 0) {
+      console.log(`Não é possível modificar aluguel id ${aluguelAtual.id} pois este já foi encerrado!`)
+    }
     // Atualiza aluguel
     await new Promise((resolve, reject) => {
       db.run(
